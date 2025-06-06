@@ -65,6 +65,67 @@ class FIFOTest:
         await RisingEdge(self.dut.CLK)
         return self.dut.read_data.value.integer
 
+@cocotb.test()
+async def run_fifo_test(dut):
+    tb = FIFOTest(dut)
+    await tb.launch_clock()
+    await tb.do_reset()
+
+    test_pairs = [(0, 0), (0, 1), (1, 0), (1, 1)]
+    for a, b in test_pairs:
+        await tb.write_data(4, a)
+        await tb.write_data(5, b)
+        track_input_combo(a, b)
+        y = await tb.read_data(3)
+        tb.logger.debug(f"a={a}, b={b}, y={y}")
+        assert y == (a ^ b)
+
+    for _ in range(32):
+        we = rand.randint(0, 1)
+        re = 0 if we else rand.randint(0, 1)
+        wa = rand.choice([4, 5])
+        ra = rand.choice([0, 1, 2, 3])
+        wd = rand.randint(0, 1)
+
+        monitor_fifo_events(wa, we, wd, re, ra)
+
+        if we:
+            await tb.write_data(wa, wd)
+            tb.logger.debug(f"WRITE [{wa}] = {wd}")
+        elif re:
+            val = await tb.read_data(ra)
+            tb.logger.debug(f"READ [{ra}] -> {val}")
+        await RisingEdge(dut.CLK)
+
+    tb.logger.info("\n===== COVERAGE =====")
+    coverage_db.report_coverage(tb.logger.info, bins=True)
+    for label in ["cov.input.ab", "cov.write.cross", "cov.read.cross"]:
+        percent = coverage_db[label].cover_percentage
+        tb.logger.info(f"{label:<20}: {percent:5.2f}%")
+
+def build_and_run():
+    sim = os.getenv("SIM", "verilator")
+    base = Path(__file__).resolve().parent
+    hdl_files = [base / "hdl" / fname for fname in ["dut.v", "FIFO1.v", "FIFO2.v"]]
+
+    runner = get_runner(sim)
+    runner.build(
+        hdl_toplevel="dut",
+        verilog_sources=[str(f) for f in hdl_files],
+        build_args=["--trace", "--trace-fst"],
+        waves=True,
+        always=True
+    )
+    runner.test(
+        hdl_toplevel="dut",
+        test_module="custom_fifo_tb",
+        waves=True
+    )
+
+if __name__ == "__main__":
+    build_and_run()
+
+
 
 
 
