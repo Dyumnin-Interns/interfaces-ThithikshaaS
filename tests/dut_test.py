@@ -27,5 +27,46 @@ def monitor_fifo_events(wa, wen, wdata, ren, raddr):
     pass
 
 
+class FIFOTest:
+    def __init__(self, dut):
+        self.dut = dut
+        self.logger = SimLog("fifo_tb")
+
+    async def launch_clock(self, ns=2):
+        cocotb.start_soon(Clock(self.dut.CLK, ns, units="ns").start())
+
+    async def do_reset(self):
+        self.dut.RST_N.value = 1
+        await ClockCycles(self.dut.CLK, 4)
+        self.dut.RST_N.value = 0
+        await ClockCycles(self.dut.CLK, 4)
+        self.dut.RST_N.value = 1
+        await RisingEdge(self.dut.CLK)
+        self.logger.info("Reset done")
+
+    async def write_data(self, addr: int, val: int):
+        await RisingEdge(self.dut.CLK)
+        while not self.dut.write_rdy.value.integer:
+            await RisingEdge(self.dut.CLK)
+        self.dut.write_address.value = addr
+        self.dut.write_data.value = val
+        self.dut.write_en.value = 1
+        await RisingEdge(self.dut.CLK)
+        self.dut.write_en.value = 0
+
+    async def read_data(self, addr: int) -> int:
+        await RisingEdge(self.dut.CLK)
+        while not self.dut.read_rdy.value.integer:
+            await RisingEdge(self.dut.CLK)
+        self.dut.read_address.value = addr
+        self.dut.read_en.value = 1
+        await RisingEdge(self.dut.CLK)
+        self.dut.read_en.value = 0
+        await RisingEdge(self.dut.CLK)
+        return self.dut.read_data.value.integer
+
+
+
+
 
   
