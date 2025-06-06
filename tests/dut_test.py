@@ -1,7 +1,8 @@
-import asyncio
-import os 
-import sys    
-from pathlib import Path 
+import asyncio 
+import os
+import sys
+from pathlib import Path
+import cocotb
 import cocotb 
 from cocotb import runner 
 from cocotb.runner import get_runner 
@@ -14,6 +15,7 @@ from cocotb_bus.scoreboard import Scoreboard
 from cocotb_coverage.coverage import CoverPoint, CoverCross, coverage_db  
 import random as rand 
 import constraint  
+
 
 @CoverPoint("top.x",             
             xf = lambda x,y:x,             
